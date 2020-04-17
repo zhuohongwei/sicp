@@ -44,4 +44,19 @@
 
 (dot-product '(1 2 3) '(4 5 6))
 
+(define (matrix-*-vector m v)
+  (map (lambda (r) (dot-product r v)) m))
+
+(matrix-*-vector (list (list 0 3 5) (list 5 5 2)) (list 3 4 3))
+
+(define (transpose mat)
+  (accumulate-n cons nil mat))
+
+(transpose (list (list 1 2 3) (list 4 5 6)))
+
+(define (matrix-*-matrix m n)
+  (let ((cols (transpose n)))
+    (map (lambda (r) (matrix-*-vector cols r)) m)))
+
+(matrix-*-matrix (list (list 0 3 5) (list 5 5 2)) (list (list 3 4) (list 3 -2) (list 4 -2)))
 
