@@ -130,3 +130,47 @@
 
 (triplets-matching-sum 10 5)
 
+;ex 2.42
+(define empty-board '())
+
+(define (adjoin-position new-row k rest-of-queens)
+  (cons (list new-row k) rest-of-queens))
+
+(define (same-row? first second)
+  (= (car first) (car second)))
+
+(define (same-col? first second)
+  (= (cadr first) (cadr second)))
+
+(define (same-diagonal? first second)
+  (= (abs (- (car first) (car second))) (abs (- (cadr first) (cadr second))))) 
+
+(define (conflict? first second)
+  (or (same-row? first second) (same-col? first second) (same-diagonal? first second)))
+
+(define (safe? k positions)
+  (let ((k-position (car positions)))
+    (define (safe-iter rest)
+      (if (null? rest)
+          #t
+          (and (not (conflict? k-position (car rest))) (safe-iter (cdr rest)))))
+    (safe-iter (cdr positions))))
+
+(define (queens board-size)
+  (define (queen-cols k)
+    (if (= k 0)
+        (list empty-board)
+        (filter
+         (lambda (positions) (safe? k positions))
+         (flatmap (lambda (rest-of-queens)
+                    (map (lambda (new-row)
+                           (adjoin-position new-row k rest-of-queens))
+                         (enumerate-interval 1 board-size)))
+                  (queen-cols (- k 1))))))
+  (queen-cols board-size))
+
+(queens 8)
+
+
+
+
