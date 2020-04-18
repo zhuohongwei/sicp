@@ -75,7 +75,7 @@
 (fold-left list nil (list 1 2 3))
 
 ;in order for fold-right and fold-left to produce the same results,
-;op must be associate (x * y) * z == x * (y * z)
+;op must be associative (x * y) * z == x * (y * z)
 ;for example,
 (fold-right * 1 (list 1 2 3))
 (fold-left * 1 (list 1 2 3))
