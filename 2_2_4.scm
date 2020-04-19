@@ -101,3 +101,85 @@
 (origin-frame-alt other-frame)
 (edge1-frame-alt other-frame)
 (edge2-frame-alt other-frame)
+
+(define (frame-coord-map frame)
+  (lambda (v)
+    (add-vect (origin-frame frame)
+              (add-vect (scale-vect (xcor-vect v) (edge1-frame frame))
+                        (scale-vect (ycor-vect v) (edge2-frame frame))))))
+
+;ex 2.48
+
+(define (make-segment start end)
+  (cons start end))
+
+(define (start-segment segment)
+  (car segment))
+
+(define (end-segment segment)
+  (cdr segment))
+
+(define (print-vector v)
+  (display "(")
+  (display (xcor-vect v))
+  (display ", ")
+  (display (ycor-vect v))
+  (display ")"))
+
+(define (draw-line from to)
+  (display "line from ")
+  (display from)
+  (display " to ")
+  (display to)
+  (newline))
+
+(define (segments->painter segment-list)
+  (lambda (frame)
+    (for-each
+     (lambda (segment)
+       (draw-line ((frame-coord-map frame)
+                   (start-segment segment))
+                  ((frame-coord-map frame)
+                   (end-segment segment))))
+     segment-list)))
+
+;ex 2.49
+;a
+(define outline-frame
+  (segments->painter (let ((bl (make-vect 0 0))
+                           (br (make-vect 1 0))
+                           (tl (make-vect 0 1))
+                           (tr (make-vect 1 1)))
+                       (list
+                        (make-segment bl tl)
+                        (make-segment bl br)
+                        (make-segment br tr)
+                        (make-segment tl tr)))))
+
+(outline-frame some-frame)
+
+;b
+(define draw-x
+  (segments->painter (let ((bl (make-vect 0 0))
+                           (br (make-vect 1 0))
+                           (tl (make-vect 0 1))
+                           (tr (make-vect 1 1)))
+                       (list
+                        (make-segment bl tr)
+                        (make-segment tl br)))))
+
+(draw-x some-frame)
+
+;c
+(define draw-diamond
+  (segments->painter (let ((n (make-vect 0.5 1))
+                           (e (make-vect 1 0.5))
+                           (s (make-vect 0.5 0))
+                           (w (make-vect 0 0.5)))
+                       (list
+                        (make-segment n e)
+                        (make-segment e s)
+                        (make-segment s w)
+                        (make-segment w n)))))
+
+(draw-diamond some-frame)
