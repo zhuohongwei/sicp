@@ -33,7 +33,6 @@
 (define (multiplicand p) (caddr p))
 
 ;ex 2.56
-
 (define (exponentiation? x)
   (and (pair? x) (eq? (car x) '**)))
 
@@ -58,7 +57,8 @@
         ((product? exp) (make-sum
                          (make-product (multiplier exp)
                                        (deriv (multiplicand exp) var))
-                         (make-product (deriv (multiplier exp) var) (multiplicand exp))))
+                         (make-product (deriv (multiplier exp) var)
+                                       (multiplicand exp))))
         
         ((exponentiation? exp) (make-product (make-product (exponent exp)
                                                            (make-exponentiation (base exp) (- (exponent exp) 1)))
@@ -68,3 +68,34 @@
 
 (deriv '(** x 10) 'x)
 
+;ex 2.57
+(define (augend-alt s)
+  (let ((rest (cddr s)))
+    (cond ((null? rest) 0)
+          ((pair? rest) (make-sum (car rest) (augend-alt  (append '(+) rest))))
+          (else rest))))
+
+(define (multiplicand-alt s)
+  (let ((rest (cddr s)))
+    (cond ((null? rest) 1)
+          ((pair? rest) (make-product (car rest) (multiplicand-alt (append '(*) rest))))
+          (else rest))))
+
+(define (deriv-alt exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp) (if (same-variable? exp var) 1 0))
+        ((sum? exp) (make-sum (deriv-alt (addend exp) var)
+                              (deriv-alt (augend-alt exp) var)))
+        ((product? exp) (make-sum
+                         (make-product (multiplier exp)
+                                       (deriv-alt (multiplicand-alt exp) var))
+                         (make-product (deriv-alt (multiplier exp) var)
+                                       (multiplicand-alt exp))))
+        
+        ((exponentiation? exp) (make-product (make-product (exponent exp)
+                                                           (make-exponentiation (base exp) (- (exponent exp) 1)))
+                                             (deriv-alt (base exp) var)))
+        (else (error "unknown expression type: DERIV" exp))))
+
+(deriv-alt '(* x y (+ x 3)) 'x)
+(deriv-alt '(* (* x y) (+ x 3)) 'x)
