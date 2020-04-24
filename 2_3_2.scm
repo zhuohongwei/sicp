@@ -99,3 +99,58 @@
 
 (deriv-alt '(* x y (+ x 3)) 'x)
 (deriv-alt '(* (* x y) (+ x 3)) 'x)
+
+;ex 2.58
+
+;a
+
+(define (make-sum-infix a1 a2)
+  (cond ((=number? a1 0) a2)
+        ((=number? a2 0) a1)
+        ((and (number? a1) (number? a2)) (+ a1 a2))
+        (else (list a1 '+ a2))))
+
+(define (make-product-infix m1 m2)
+  (cond ((or (=number? m1 0) (=number? m2 0)) 0)
+        ((=number? m1 1) m2)
+        ((=number? m2 1) m1)
+        ((and (number? m1) (number? m2)) (* m1 m2))
+        (else (list m1 '* m2))))
+
+(define (sum-infix? x) (and (pair? x) (eq? (cadr x) '+)))
+
+(define (addend-infix s) (car s))
+
+(define (product-infix? x) (and (pair? x) (eq? (cadr x) '*)))
+
+(define (multiplier-infix p) (car p))
+
+(define (exponentiation-infix? x)
+  (and (pair? x) (eq? (cadr x) '**)))
+
+(define (base-infix x)
+  (car x))
+
+(define (make-exponentiation-infix base exponent)
+  (cond
+    ((=number? exponent 0) 1)
+    ((=number? exponent 1) base)
+    ((and (number? base) (number? exponent)) (expt base exponent))
+    (else (list base '**  exponent))))
+
+(define (deriv-infix exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp) (if (same-variable? exp var) 1 0))
+        ((sum-infix? exp) (make-sum-infix (deriv-infix (addend-infix exp) var)
+                              (deriv-infix (augend exp) var)))
+        ((product-infix? exp) (make-sum-infix
+                         (make-product-infix (multiplier-infix exp)
+                                       (deriv-infix (multiplicand exp) var))
+                         (make-product-infix (deriv-infix (multiplier-infix exp) var)
+                                       (multiplicand exp))))
+        ((exponentiation-infix? exp) (make-product-infix (make-product-infix (exponent exp)
+                                                           (make-exponentiation-infix (base-infix exp) (- (exponent exp) 1)))
+                                             (deriv-infix (base-infix exp) var)))
+        (else (error "unknown expression type: DERIV" exp))))
+
+(deriv-infix '(x + (3 * (x + (y + 2)))) 'x)
