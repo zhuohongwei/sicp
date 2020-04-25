@@ -154,3 +154,72 @@
         (else (error "unknown expression type: DERIV" exp))))
 
 (deriv-infix '(x + (3 * (x + (y + 2)))) 'x)
+
+
+;b
+
+(define (make-sum-infix-alt a1 a2)
+  (cond ((=number? a1 0) a2)
+        ((=number? a2 0) a1)
+        ((and (number? a1) (number? a2)) (+ a1 a2))
+        (else (list a1 '+ a2))))
+
+(define (make-product-infix-alt m1 m2)
+  (cond ((or (=number? m1 0) (=number? m2 0)) 0)
+        ((=number? m1 1) m2)
+        ((=number? m2 1) m1)
+        ((and (number? m1) (number? m2)) (* m1 m2))
+        (else (list m1 '* m2))))
+
+(define (sum-infix-alt? x)
+  (define (contains-plus? x)
+    (cond ((null? x) #f)
+          ((eq? (car x) '+) #t)
+          (else (contains-plus? (cdr x)))))
+  (and (pair? x) (contains-plus? x)))
+
+(define (process-sum-part exp)
+  (cond ((= (length exp) 1) (car exp))
+        ((sum-infix-alt? exp) (make-sum-infix-alt (addend-infix-alt exp) (augend-infix-alt exp)))
+        ((product-infix-alt? exp)(make-product-infix-alt (multiplier-infix-alt exp) (multiplicand-infix-alt exp)))
+        (else (error "Invalid addened or augend" exp))))
+        
+(define (addend-infix-alt s)
+  (define (addend-infix-alt-iter rest result)
+    (if (eq? (car rest) '+)
+        (process-sum-part result)
+        (addend-infix-alt-iter (cdr rest) (append result (list (car rest))))))
+  (addend-infix-alt-iter s '())) 
+           
+(define (augend-infix-alt s)
+  (if (eq? (car s) '+)
+      (process-sum-part (cdr s))
+      (augend-infix-alt (cdr s))))
+
+(define (product-infix-alt? x)
+  (and (pair? x)
+       (eq? (cadr x) '*)
+       (or (= (length (cddr x)) 1) (product-infix-alt? (cddr x)))))
+           
+(define (multiplier-infix-alt p) (car p))  
+
+(define (multiplicand-infix-alt p)
+  (if (= (length (cddr p)) 1)
+      (caddr p)
+      (make-product-infix-alt (multiplier-infix-alt p) (multiplicand-infix-alt p))))
+
+
+(define (deriv-infix-alt exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp) (if (same-variable? exp var) 1 0))
+        ((sum-infix-alt? exp) (make-sum-infix-alt (deriv-infix-alt (addend-infix-alt exp) var)
+                              (deriv-infix-alt (augend-infix-alt exp) var)))
+        ((product-infix-alt? exp) (make-sum-infix-alt
+                         (make-product-infix-alt (multiplier-infix-alt exp)
+                                       (deriv-infix-alt (multiplicand-infix-alt exp) var))
+                         (make-product-infix-alt (deriv-infix-alt (multiplier-infix-alt exp) var)
+                                       (multiplicand-infix-alt exp))))
+        (else (error "unknown expression type: DERIV" exp))))
+
+(deriv-infix-alt '(x + 3 * (x + y + 2)) 'x)
+(deriv-infix-alt '(3 * x + 4 * y + 2 * (3 * x)) 'x)
