@@ -136,3 +136,10 @@
   (lambda (tree1 tree2) (binary-tree-op intersection-set-ordered tree1 tree2)))
 
 (tree->list-2 (intersection-set-binary some-tree another-tree))
+
+; ex 2.66
+(define (lookup key records)
+  (cond ((null? records) false)
+        ((= key (entry records)) (entry records))
+        ((> key (entry records)) (lookup key (right-branch records)))
+        ((< key (entry records)) (lookup key (left-branch records)))))
