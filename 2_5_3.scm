@@ -146,7 +146,7 @@
        (lambda (order coeff) (tag (make-term-dense order coeff))))
   'done)
 
-(define (install-dense-sparse)
+(define (install-sparse-package)
   ; internal procedures
   (define (adjoin-term-sparse term term-list)
     (if (=zero? (coeff-sparse term))
