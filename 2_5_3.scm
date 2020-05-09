@@ -13,6 +13,9 @@
 (define (mul first second)
   (apply-generic 'mul first second))
 
+(define (div first second)
+  (apply-generic 'div first second))
+
 (define (negate x)
   (apply-generic 'negate x))
 
@@ -277,6 +280,33 @@
   (define (sub-poly p1 p2)
     (add-poly p1 (negate-poly p2)))
 
+  ; ex 2.91
+  (define (negate-term term)
+    (let ((make-term (get 'make-term (type-tag term))))
+      (make-term (order term) (negate (coeff term)))))
+  
+  (define (sub-terms L1 L2)
+    (add-terms L1 (map negate-term L2)))
+  
+  (define (div-terms L1 L2)
+    (let ((the-empty-termlist (get 'the-empty-termlist (type-tag L1)))
+          (make-term (get 'make-term (type-tag L1))))
+      (if (empty-termlist? L1)
+          (list (the-empty-termlist) (the-empty-termlist))
+          (let ((t1 (first-term L1))
+                (t2 (first-term L2)))
+            (if (> (order t2) (order t1))
+                (list (the-empty-termlist) L1)
+                (let ((new-c (div (coeff t1) (coeff t2)))
+                      (new-o (- (order t1) (order t2))))
+                  (let ((new-term (make-term new-o new-c)))
+                    (let ((new-dividend (sub-terms L1 (mul-term-by-all-terms new-term L2)))) 
+                      (let ((rest-of-result
+                             (div-terms
+                              new-dividend
+                              L2)))
+                        (list (cons new-term (car rest-of-result)) (cdr rest-of-result)))))))))))
+
   ;; interface to rest of the system
   (define (tag p) (attach-tag 'polynomial p))
   (put 'add '(polynomial polynomial)
@@ -292,4 +322,3 @@
        (lambda (p) (tag (negate-poly p))))
   'done)
 
-  
