@@ -140,13 +140,64 @@
     (null? (term-list polynomial)))
 
   ; ex 2.88
+  (define (negate-term term)
+    (make-term (order term) (negate (coeff term))))
+  
   (define (negate-poly polynomial)
     (make-poly (variable polynomial)
-               (map (lambda (term) (make-term (order term) (negate (coeff term)))) (term-list polynomial))))
+               (map negate-term (term-list polynomial))))
   
   (define (sub-poly p1 p2)
     (add-poly p1 (negate-poly p2)))
 
+  ; ex 2.94
+  (define (div-poly p1 p2)
+    (if (same-variable? (variable p1) (variable p2))
+        (map (lambda (term-list) (make-poly (variable p1) term-list))
+             (div-terms (term-list p1) (term-list p2)))
+        (error "Polys not in same var: DIV-POLY" (list p1 p2))))
+
+  (define (sub-terms L1 L2)
+    (let ((result-terms (add-terms L1 (map negate-term L2))))
+      (define (filter-zero-terms terms)
+        (cond ((null? terms) '())
+              ((apply-generic '=zero? (coeff (car terms))) (filter-zero-terms (cdr terms)))
+              (else (cons (car terms) (filter-zero-terms (cdr terms))))))
+      (filter-zero-terms result-terms)))
+     
+  (define (div-terms L1 L2)
+    (if (empty-termlist? L1)
+        (list (the-empty-termlist) (the-empty-termlist))
+        (let ((t1 (first-term L1))
+              (t2 (first-term L2)))
+          (if (> (order t2) (order t1))
+              (list (the-empty-termlist) L1)
+              (let ((new-c (div (coeff t1) (coeff t2)))
+                    (new-o (- (order t1) (order t2))))
+                (let ((new-term (make-term new-o new-c)))
+                  (let ((multiplied (mul-term-by-all-terms new-term L2)))
+                    (let ((new-dividend (sub-terms L1 multiplied))) 
+                      (let ((rest-of-result 
+                           (div-terms
+                            new-dividend
+                            L2)))
+                        (list (cons new-term (car rest-of-result)) (cadr rest-of-result)))))))))))
+
+  
+  (define (remainder-terms L1 L2)
+    (cadr (div-terms L1 L2)))
+
+  (define (gcd-terms L1 L2)
+    (if (empty-termlist? L2)
+        L1
+        (gcd-terms L2 (remainder-terms L1 L2))))
+
+  (define (gcd-poly p1 p2)
+    (if (same-variable? (variable p1) (variable p2))
+        (make-poly (variable p1)
+                   (gcd-terms (term-list p1) (term-list p2)))
+        (error "Polys not in same var: GCD-POLY" (list p1 p2))))
+  
   ;; interface to rest of the system
   (define (tag p) (attach-tag 'polynomial p))
   (put 'add '(polynomial polynomial)
@@ -155,11 +206,15 @@
        (lambda (p1 p2) (tag (mul-poly p1 p2))))
   (put 'sub '(polynomial polynomial)
        (lambda (p1 p2) (tag (sub-poly p1 p2))))
+  (put 'div '(polynomial polynomial)
+       (lambda (p1 p2) (map tag (div-poly p1 p2))))
   (put 'make 'polynomial
        (lambda (var terms) (tag (make-poly var terms))))
   (put '=zero? 'polynomial =zero?)
   (put 'negate 'polynomial
        (lambda (p) (tag (negate-poly p))))
+  (put 'greatest-common-divisor '(polynomial polynomial)
+       (lambda (p1 p2) (tag (gcd-poly p1 p2))))
   'done)
 
 ; ex 2.89
@@ -349,7 +404,9 @@
                 (let ((new-c (div (coeff t1) (coeff t2)))
                       (new-o (- (order t1) (order t2))))
                   (let ((new-term (make-term new-o new-c)))
-                    (let ((new-dividend (sub-terms L1 (mul-term-by-all-terms new-term L2)))) 
+                    (let ((new-dividend (sub-terms L1 (mul-term-by-all-terms new-term L2))))
+                      (display new-dividend)
+                      (newline)
                       (let ((rest-of-result
                              (div-terms
                               new-dividend
@@ -428,16 +485,25 @@
        (lambda (x y) (tag (/ x y))))
   (put 'make 'scheme-number
        (lambda (x) (tag x)))
+  (put 'negate 'scheme-number
+       (lambda (x) (tag (* -1 x))))
+  (put '=zero? 'scheme-number
+       (lambda (x) (= 0 x)))
   'done)
 
 (define (make-scheme-number n)
   ((get 'make 'scheme-number) n))
 
+(install-scheme-number-package)
 (install-rational-package)
 (install-polynomial-package)
-(install-scheme-number-package)
  
 (define p1 (make-polynomial 'x (list (list 2 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
 (define p2 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
 (define rf (make-rational p2 p1))
 (add rf rf)
+
+; ex 2.94 
+(define p3 (make-polynomial 'x (list (list 4 (make-scheme-number 1)) (list 3 (make-scheme-number -1)) (list 2 (make-scheme-number -2)) (list 1 (make-scheme-number 2)))))
+(define p4 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 1 (make-scheme-number -1)))))
+(apply-generic 'greatest-common-divisor p3 p4)
