@@ -1,14 +1,62 @@
 #lang sicp
 
-(define (put op tag proc) (error "Unimplemented Operation PUT"))
-(define (get op tag) (error "Unimplemented Operation GET"))
-(define (apply-generic op . args) (error "Unimplemented Operation APPLY-GENERIC"))
+;(define (put op tag proc) (error "Unimplemented Operation PUT"))
+;(define (get op tag) (error "Unimplemented Operation GET"))
+;(define (apply-generic op . args) (error "Unimplemented Operation APPLY-GENERIC"))
+
+(define lookup-table '())
+
+(define (eq-key? key1 key2)
+  (cond ((and (symbol? key1) (symbol? key2)) (eq? key1 key2))
+        ((and (null? key1) (null? key2)) true)
+        ((and (pair? key1) (pair? key2)) (and (eq-key? (car key1) (car key2)) (eq-key? (cdr key1) (cdr key2))))
+        (else false)))
+
+(define (get-value key)
+  (define (get-value-iter remaining-rows)
+    (cond ((null? remaining-rows) false)
+          (else (let ((row (car remaining-rows)))
+                  (cond ((null? row) (error "Invalid Row"))
+                        ((eq-key? (car row) key) (cdr row))
+                        (else (get-value-iter (cdr remaining-rows))))))))
+  (get-value-iter lookup-table))
+
+(define (put-value key value)
+  (define (put-value-iter remaining-rows)
+    (cond ((null? remaining-rows) (list (cons key value)))
+          (else (let ((row (car remaining-rows)))
+                  (cond ((null? row) (error "Invalid Row"))
+                        ((eq-key? (car row) key) (cons (cons key value) (cdr remaining-rows)))
+                        (else (cons row (put-value-iter (cdr remaining-rows)))))))))
+  (set! lookup-table (put-value-iter lookup-table)))
+
+(define (get op type)
+  (let ((proc
+         (if (pair? type)
+             (get-value (append (list op) type))
+             (get-value (list op type)))))
+    (if proc
+        proc
+        (error "Operation Not Supported" op type))))
+
+(define (put op type proc)
+  (if (pair? type)
+      (put-value (append (list op) type) proc) 
+      (put-value (list op type) proc)))
+
+(define (apply-generic op . args)
+  (let ((arg-types (map car args))
+        (arg-values (map cdr args)))    
+    (apply (get op arg-types) arg-values)))
 
 (define (=zero? x)
   (apply-generic '=zero? x))
 
 (define (add first second)
   (apply-generic 'add first second))
+
+(define (sub first second)
+  (apply-generic 'sub first second))
 
 (define (mul first second)
   (apply-generic 'mul first second))
@@ -89,12 +137,7 @@
 
   ; ex 2.87
   (define (=zero? polynomial)
-    (let ((coefficients (map coeff (term-list polynomial))))
-      (define (all-zero? numbers)
-        (if (null? numbers)
-            true
-            (and (=zero? (car numbers)) (all-zero? (cdr numbers)))))
-      (all-zero? coefficients)))
+    (null? (term-list polynomial)))
 
   ; ex 2.88
   (define (negate-poly polynomial)
@@ -136,7 +179,7 @@
   (define (tag t) (attach-tag 'dense t))
   (put 'coeff 'dense coeff-dense)
   (put 'order 'dense order-dense)
-  (put 'adjoin-term ('dense 'dense)
+  (put 'adjoin-term '(dense dense)
        (lambda (term term-list) (tag (adjoin-term-dense term term-list))))
   (put 'the-empty-termlist 'dense
        (lambda () (tag (the-empty-termlist-dense))))
@@ -171,7 +214,7 @@
   (define (tag t) (attach-tag 'sparse t))
   (put 'coeff 'sparse coeff-sparse)
   (put 'order 'sparse order-sparse)
-  (put 'adjoin-term ('sparse 'sparse)
+  (put 'adjoin-term '(sparse sparse)
        (lambda (term term-list) (tag (adjoin-term-sparse term term-list))))
   (put 'the-empty-termlist 'sparse
        (lambda () (tag (the-empty-termlist-sparse))))
@@ -281,6 +324,12 @@
     (add-poly p1 (negate-poly p2)))
 
   ; ex 2.91
+  (define (div-poly p1 p2)
+    (if (same-variable? p1 p2)
+        (make-poly (variable p1)
+                   (div-terms (term-list p1) (term-list p2)))
+        (error "Polys not in same var: DIV-POLY" (list p1 p2))))
+
   (define (negate-term term)
     (let ((make-term (get 'make-term (type-tag term))))
       (make-term (order term) (negate (coeff term)))))
@@ -315,6 +364,8 @@
        (lambda (p1 p2) (tag (mul-poly p1 p2))))
   (put 'sub '(polynomial polynomial)
        (lambda (p1 p2) (tag (sub-poly p1 p2))))
+  (put 'div '(polynomial polynomial)
+       (lambda (p1 p2) (tag (div-poly p1 p2))))
   (put 'make 'polynomial
        (lambda (var terms) (tag (make-poly var terms))))
   (put '=zero? 'polynomial =zero?)
@@ -322,3 +373,71 @@
        (lambda (p) (tag (negate-poly p))))
   'done)
 
+(define (make-polynomial var terms) ((get 'make 'polynomial) var terms))
+
+; ex 2.93
+
+(define (install-rational-package)
+  ;; internal procedures
+  (define (numer x) (car x))
+  (define (denom x) (cdr x))
+  (define (make-rat n d)
+    (cons n d))
+    ;(let ((g (gcd n d)))
+    ;  (cons (/ n g) (/ d g))))
+  (define (add-rat x y)
+    (make-rat (add (mul (numer x) (denom y))
+                 (mul (numer y) (denom x)))
+              (add (denom x) (denom y))))
+  (define (sub-rat x y)
+    (make-rat (sub (mul (numer x) (denom y))
+                 (mul (numer y) (denom x)))
+              (mul (denom x) (denom y))))
+  (define (mul-rat x y)
+    (make-rat (mul (numer x) (numer y))
+              (mul (denom x) (denom y))))
+  (define (div-rat x y)
+    (make-rat (mul (numer x) (denom y))
+              (mul (denom x) (numer y))))
+  ;; interface to rest of the system
+  (define (tag x) (attach-tag 'rational x))
+  (put 'add '(rational rational)
+       (lambda (x y) (tag (add-rat x y))))
+  (put 'sub '(rational rational)
+       (lambda (x y) (tag (sub-rat x y))))
+  (put 'mul '(rational rational)
+       (lambda (x y) (tag (mul-rat x y))))
+  (put 'div '(rational rational)
+       (lambda (x y) (tag (div-rat x y))))
+  (put 'make 'rational
+       (lambda (n d) (tag (make-rat n d))))
+  'done)
+
+(define (make-rational n d)
+  ((get 'make 'rational) n d))
+
+(define (install-scheme-number-package)
+  (define (tag x) (attach-tag 'scheme-number x))
+  (put 'add '(scheme-number scheme-number)
+       (lambda (x y) (tag (+ x y))))
+  (put 'sub '(scheme-number scheme-number)
+       (lambda (x y) (tag (- x y))))
+  (put 'mul '(scheme-number scheme-number)
+       (lambda (x y) (tag (* x y))))
+  (put 'div '(scheme-number scheme-number)
+       (lambda (x y) (tag (/ x y))))
+  (put 'make 'scheme-number
+       (lambda (x) (tag x)))
+  'done)
+
+(define (make-scheme-number n)
+  ((get 'make 'scheme-number) n))
+
+(install-rational-package)
+(install-polynomial-package)
+(install-scheme-number-package)
+ 
+(define p1 (make-polynomial 'x (list (list 2 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
+(define p2 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
+(define rf (make-rational p2 p1))
+(add rf rf)
