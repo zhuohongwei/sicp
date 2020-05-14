@@ -67,6 +67,9 @@
 (define (negate x)
   (apply-generic 'negate x))
 
+(define (exponentiation base exponent)
+  (apply-generic 'exponentiation base exponent))
+
 (define (attach-tag tag object)
   (cons tag object))
 
@@ -187,10 +190,24 @@
   (define (remainder-terms L1 L2)
     (cadr (div-terms L1 L2)))
 
+  ; ex 2.96
+  ; a, b
+
+  (define (factor L1 L2)
+    (let ((o1 (order (first-term L1)))
+          (o2 (order (first-term L2)))
+          (c (coeff (first-term L2))))
+      (exponentiation c (make-scheme-number (+ 1 o1 (- o2))))))
+  
+  (define (pseudoremainder-terms L1 L2) 
+    (let ((pseudoL1 (mul-term-by-all-terms (make-term 0 (factor L1 L2)) L1)))
+      (cadr (div-terms pseudoL1 L2))))
+  
   (define (gcd-terms L1 L2)
     (if (empty-termlist? L2)
-        L1
-        (gcd-terms L2 (remainder-terms L1 L2))))
+        (let ((gcd (apply apply-generic (cons 'greatest-common-divisor (map coeff L1)))))
+          (map (lambda (term) (make-term (order term) (div (coeff term) gcd))) L1))
+        (gcd-terms L2 (pseudoremainder-terms L1 L2))))
 
   (define (gcd-poly p1 p2)
     (if (same-variable? (variable p1) (variable p2))
@@ -489,6 +506,13 @@
        (lambda (x) (tag (* -1 x))))
   (put '=zero? 'scheme-number
        (lambda (x) (= 0 x)))
+  (put 'exponentiation '(scheme-number scheme-number)
+       (lambda (base exponent) (tag (expt base exponent))))
+  ; a bad way to fix multiple arity procedure binding, lack of a better idea
+  (put 'greatest-common-divisor '(scheme-number scheme-number)
+       (lambda (x y) (tag (gcd x y))))
+  (put 'greatest-common-divisor '(scheme-number scheme-number scheme-number)
+       (lambda (x y z) (tag (gcd x y z))))
   'done)
 
 (define (make-scheme-number n)
@@ -507,3 +531,14 @@
 (define p3 (make-polynomial 'x (list (list 4 (make-scheme-number 1)) (list 3 (make-scheme-number -1)) (list 2 (make-scheme-number -2)) (list 1 (make-scheme-number 2)))))
 (define p4 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 1 (make-scheme-number -1)))))
 (apply-generic 'greatest-common-divisor p3 p4)
+
+; ex 2.95
+;P1: x2-2x+1, P2: 11x2+7, P3: 13x+5.
+
+(set! p1 (make-polynomial 'x (list (list 2 (make-scheme-number 1)) (list 1 (make-scheme-number -2)) (list 0 (make-scheme-number 1)))))
+(set! p2 (make-polynomial 'x (list (list 2 (make-scheme-number 11)) (list 0 (make-scheme-number 7)))))
+(set! p3 (make-polynomial 'x (list (list 1 (make-scheme-number 13)) (list 0 (make-scheme-number 5)))))
+
+(define q1 (mul p1 p2))
+(define q2 (mul p1 p3))
+(apply-generic 'greatest-common-divisor q1 q2)
