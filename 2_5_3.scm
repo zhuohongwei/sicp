@@ -44,9 +44,18 @@
       (put-value (append (list op) type) proc) 
       (put-value (list op type) proc)))
 
+(define (attach-tag tag object)
+  (cons tag object))
+
+(define (type-tag tagged)
+  (car tagged))
+
+(define (contents tagged)
+  (cdr tagged))
+
 (define (apply-generic op . args)
-  (let ((arg-types (map car args))
-        (arg-values (map cdr args)))    
+  (let ((arg-types (map type-tag args))
+        (arg-values (map contents args)))    
     (apply (get op arg-types) arg-values)))
 
 (define (=zero? x)
@@ -70,11 +79,10 @@
 (define (exponentiation base exponent)
   (apply-generic 'exponentiation base exponent))
 
-(define (attach-tag tag object)
-  (cons tag object))
-
-(define (type-tag tagged)
-  (car tagged))
+(define (make-list numbers)
+  (if (and (not (null? numbers)) (pair? numbers)) 
+      ((get 'make-list (type-tag (car numbers))) numbers)
+      'empty-list-of-numbers))
 
 (define (install-polynomial-package)
   (define (make-poly variable term-list)
@@ -205,8 +213,9 @@
   
   (define (gcd-terms L1 L2)
     (if (empty-termlist? L2)
-        (let ((gcd (apply apply-generic (cons 'greatest-common-divisor (map coeff L1)))))
-          (map (lambda (term) (make-term (order term) (div (coeff term) gcd))) L1))
+        (let ((coefficients (make-list (map coeff L1))))
+          (let ((gcd (apply-generic 'greatest-common-divisor coefficients)))
+            (map (lambda (term) (make-term (order term) (div (coeff term) gcd))) L1)))
         (gcd-terms L2 (pseudoremainder-terms L1 L2))))
 
   (define (gcd-poly p1 p2)
@@ -508,11 +517,10 @@
        (lambda (x) (= 0 x)))
   (put 'exponentiation '(scheme-number scheme-number)
        (lambda (base exponent) (tag (expt base exponent))))
-  ; a bad way to fix multiple arity procedure binding, lack of a better idea
-  (put 'greatest-common-divisor '(scheme-number scheme-number)
-       (lambda (x y) (tag (gcd x y))))
-  (put 'greatest-common-divisor '(scheme-number scheme-number scheme-number)
-       (lambda (x y z) (tag (gcd x y z))))
+  (put 'greatest-common-divisor 'scheme-number-list
+       (lambda (numbers) (tag (apply gcd (map contents numbers)))))
+  (put 'make-list 'scheme-number
+       (lambda (numbers) (attach-tag 'scheme-number-list numbers))) 
   'done)
 
 (define (make-scheme-number n)
