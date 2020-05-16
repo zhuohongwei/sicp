@@ -10,5 +10,5 @@ I write and run the code using DrRacket IDE from [Racket Website](https://racket
 Specifically, I use the [SICP package](https://docs.racket-lang.org/sicp-manual/) for working through the exercises.
 
 ## Disclaimer
-I am using these files to chart progress, and make no guarantee of correctness of any of the solutions here.      
+I am using these files to chart progress, and make no guarantee of correctness for any of the solutions here.      
 
