@@ -73,6 +73,9 @@
 (define (div first second)
   (apply-generic 'div first second))
 
+(define (reduce first second)
+  (apply-generic 'reduce first second))
+
 (define (negate x)
   (apply-generic 'negate x))
 
@@ -197,7 +200,7 @@
   
   (define (remainder-terms L1 L2)
     (cadr (div-terms L1 L2)))
-
+  
   ; ex 2.96
   ; a, b
 
@@ -210,7 +213,27 @@
   (define (pseudoremainder-terms L1 L2) 
     (let ((pseudoL1 (mul-term-by-all-terms (make-term 0 (factor L1 L2)) L1)))
       (cadr (div-terms pseudoL1 L2))))
-  
+
+  ; ex 2.97
+  ; a, b
+
+  (define (reduce-terms L1 L2)
+    (let ((gcd (gcd-terms L1 L2))
+          (integerizing-factor (factor L1 L2)))
+      (let ((modifiedL1 (mul-term-by-all-terms (make-term 0 integerizing-factor) L1))
+            (modifiedL2 (mul-term-by-all-terms (make-term 0 integerizing-factor) L2)))
+        (let ((new-factor (factor (add-terms modifiedL1 modifiedL2) gcd)))
+          (let ((pseudoL1 (mul-term-by-all-terms (make-term 0 new-factor) modifiedL1))
+                (pseudoL2 (mul-term-by-all-terms (make-term 0 new-factor) modifiedL2)))
+            (list (car (div-terms pseudoL1 gcd))
+                  (car (div-terms pseudoL2 gcd))))))))
+
+  (define (reduce-poly p1 p2)
+    (if (same-variable? (variable p1) (variable p2))
+        (map (lambda (term-list) (make-poly (variable p1) term-list))
+             (reduce-terms (term-list p1) (term-list p2)))
+        (error "Polys not in same var: REDUCE-POLY" (list p1 p2))))
+
   (define (gcd-terms L1 L2)
     (if (empty-termlist? L2)
         (let ((coefficients (make-list (map coeff L1))))
@@ -241,6 +264,8 @@
        (lambda (p) (tag (negate-poly p))))
   (put 'greatest-common-divisor '(polynomial polynomial)
        (lambda (p1 p2) (tag (gcd-poly p1 p2))))
+  (put 'reduce '(polynomial polynomial)
+       (lambda (p1 p2) (map tag (reduce-poly p1 p2))))
   'done)
 
 ; ex 2.89
@@ -465,13 +490,13 @@
   (define (numer x) (car x))
   (define (denom x) (cdr x))
   (define (make-rat n d)
-    (cons n d))
-    ;(let ((g (gcd n d)))
-    ;  (cons (/ n g) (/ d g))))
+    (let ((reduced (reduce n d)))
+      (cons (car reduced) (cadr reduced))))
+   
   (define (add-rat x y)
     (make-rat (add (mul (numer x) (denom y))
                  (mul (numer y) (denom x)))
-              (add (denom x) (denom y))))
+              (mul (denom x) (denom y))))
   (define (sub-rat x y)
     (make-rat (sub (mul (numer x) (denom y))
                  (mul (numer y) (denom x)))
@@ -520,7 +545,11 @@
   (put 'greatest-common-divisor 'scheme-number-list
        (lambda (numbers) (tag (apply gcd (map contents numbers)))))
   (put 'make-list 'scheme-number
-       (lambda (numbers) (attach-tag 'scheme-number-list numbers))) 
+       (lambda (numbers) (attach-tag 'scheme-number-list numbers)))
+  (put 'reduce '(scheme-number scheme-number)
+       (lambda (x y)
+         (let ((gcd (gcd x y)))
+           (list (/ x gcd) (/ y gcd)))))
   'done)
 
 (define (make-scheme-number n)
@@ -533,6 +562,8 @@
 (define p1 (make-polynomial 'x (list (list 2 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
 (define p2 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
 (define rf (make-rational p2 p1))
+(display rf)
+(newline)
 (add rf rf)
 
 ; ex 2.94 
@@ -550,3 +581,12 @@
 (define q1 (mul p1 p2))
 (define q2 (mul p1 p3))
 (apply-generic 'greatest-common-divisor q1 q2)
+
+; ex 2.97 b
+(set! p1 (make-polynomial 'x (list (list 1 (make-scheme-number 1)) (list 0 (make-scheme-number 1)))))
+(set! p2 (make-polynomial 'x (list (list 3 (make-scheme-number 1)) (list 0 (make-scheme-number -1)))))
+(set! p3 (make-polynomial 'x (list (list 1 (make-scheme-number 1)))))
+(set! p4 (make-polynomial 'x (list (list 2 (make-scheme-number 1)) (list 0 (make-scheme-number -1)))))
+(define rf1 (make-rational p1 p2))
+(define rf2 (make-rational p3 p4))
+(add rf1 rf2)
