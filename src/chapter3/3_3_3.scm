@@ -1,0 +1,171 @@
+#lang sicp
+
+; ex 3.24
+
+(define (assoc key records same-key?)
+  (cond ((null? records) false)
+        ((same-key? (caar records) key) (car records))
+        (else (assoc key (cdr records) same-key?))))
+
+(define (make-table same-key?)
+  (let ((local-table (list '*table*)))
+    (define (lookup key-1 key-2)
+      (let ((subtable (assoc key-1 (cdr local-table) same-key?)))
+        (if subtable
+            (let ((record (assoc key-2 (cdr subtable) same-key?)))
+              (if record (cdr record) false))
+            false)))
+    (define (insert! key-1 key-2 value)
+      (let ((subtable (assoc key-1 (cdr local-table) same-key?)))
+        (if subtable
+            (let ((record (assoc key-2 (cdr subtable) same-key?)))
+              (if record
+                  (set-cdr! record value)
+                  (set-cdr! subtable (cons (cons key-2 value) (cdr subtable)))))
+            (set-cdr! local-table (cons (list key-1 (cons key-2 value)) (cdr local-table)))))
+    'ok)
+    (define (dispatch m)
+      (cond ((eq? m 'lookup-proc) lookup)
+            ((eq? m 'insert-proc!) insert!)
+            (else (error "Unknown operation: TABLE" m))))
+    dispatch))
+    
+; ex 3.25
+
+(define (make-multidimensional-table)
+  (let ((local-table (list '*table* false)))
+    (define (lookup keys)
+      (define (lookup-iter table keys)
+        (if (null? keys)
+            (cadr table) 
+            (let ((subtable (assoc (car keys) (cddr table) equal?)))
+              (if subtable
+                  (lookup-iter subtable (cdr keys))
+                  false))))
+      (lookup-iter local-table keys))
+    (define (insert! keys value)
+      (define (insert-iter! table keys)
+        (if (null? keys)
+            (set-car! (cdr table) value)
+            (let ((subtable (assoc (car keys) (cddr table) equal?)))
+              (if subtable
+                  (insert-iter! subtable (cdr keys))
+                  (let ((new-subtable (list (car keys) false)))
+                    (set-cdr! (cdr table) (cons new-subtable (cddr table)))
+                    (insert-iter! new-subtable (cdr keys)))))))
+      (insert-iter! local-table keys)
+      'ok)
+    (define (dispatch m)
+      (cond ((eq? m 'lookup-proc) lookup)
+            ((eq? m 'insert-proc!) insert!)
+            (else (error "Unknown operation: TABLE" m))))
+    dispatch))
+
+(define (lookup table keys)
+  ((table 'lookup-proc) keys))
+(define (insert! table keys value)
+  ((table 'insert-proc!) keys value))
+
+(define t (make-multidimensional-table))
+
+(insert! t '(one) 1)
+(lookup t '(one))
+(insert! t '(one two) 2)
+(lookup t '(one two))
+(insert! t '(one) 3)
+(lookup t '(one two))
+(lookup t '(one))
+(insert! t '(four) 4)
+(lookup t '(four))
+
+; ex 3.26
+
+(define (entry tree) (car tree))
+(define (left-branch tree) (cadr tree))
+(define (right-branch tree) (caddr tree))
+(define (make-tree entry left right)
+  (list entry left right))
+
+(define (make-entry key value subtree)
+  (list key value subtree))
+(define (key entry)
+  (car entry))
+(define (value entry)
+  (cadr entry))
+(define (set-value! entry value)
+  (set-car! (cdr entry) value))
+(define (subtree entry)
+  (caddr entry))
+(define (set-subtree! entry subtree)
+  (set-car! (cddr entry) subtree))
+
+(define (lookup-binary-tree search-key records)
+  (cond ((null? records) false)
+        ((= search-key (key (entry records))) records)
+        ((> search-key (key (entry records))) (lookup-binary-tree search-key (right-branch records)))
+        ((< search-key (key (entry records))) (lookup-binary-tree search-key (left-branch records)))))
+
+(define (insert-into-binary-tree! new-key new-value records)
+  (let ((new-entry (make-entry new-key new-value '())))
+    (if (null? records)
+        (make-tree new-entry '() '())
+        (let ((entry-key (key (entry records))))
+          (cond ((= new-key entry-key)
+                 (set-car! records new-entry) records)
+                ((> new-key entry-key)
+                 (if (null? (right-branch records))
+                     (begin (set-car! (cddr records) (make-tree new-entry '() '())) (right-branch records)) 
+                     (insert-into-binary-tree! new-key new-value (right-branch records))))
+                ((< new-key entry-key)
+                 (if (null? (left-branch records))
+                     (begin (set-car! (cdr records) (make-tree new-entry '() '())) (left-branch records)) 
+                     (insert-into-binary-tree! new-key new-value (left-branch records)))))))))
+  
+(define (make-binary-tree-table)
+  (let ((local-table (make-tree (make-entry '*table* false '()) '() '())))
+    (define (lookup keys)
+      (define (lookup-iter table keys)
+        (if (null? keys)
+            (value (entry table))
+            (let ((subtable (lookup-binary-tree (car keys) (subtree (entry table)))))
+              (if subtable
+                  (lookup-iter subtable (cdr keys))
+                  false))))
+      (lookup-iter local-table keys))
+    (define (insert! keys value)
+      (define (insert-iter! table keys)
+        (if (null? keys)
+            (set-value! (entry table) value)
+            (let ((subtable (lookup-binary-tree (car keys) (subtree (entry table)))))
+              (if subtable
+                  (insert-iter! subtable (cdr keys))
+                  (let ((new-subtable (insert-into-binary-tree! (car keys) false (subtree (entry table)))))
+                    (if (null? (subtree (entry table))) ; fugly workaround for root table
+                        (set-subtree! (entry table) new-subtable)
+                        'no-op)
+                    (insert-iter! new-subtable (cdr keys))
+                    )))))
+      (insert-iter! local-table keys)
+    'ok)
+    (define (dispatch m)
+      (cond ((eq? m 'lookup-proc) lookup)
+            ((eq? m 'insert-proc!) insert!)
+            (else (error "Unknown operation: TABLE" m))))
+    dispatch))
+
+(define t2 (make-binary-tree-table))
+
+(insert! t2 '(1) 1)
+(lookup t2 '(1))
+(insert! t2 '(1 2) 2)
+(lookup t2 '(1 2))
+(insert! t2 '(1) 3)
+(lookup t2 '(1 2))
+(lookup t2 '(1))
+(insert! t2 '(4) 4)
+(lookup t2 '(4))
+
+
+                   
+            
+            
