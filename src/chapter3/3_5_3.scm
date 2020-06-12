@@ -27,6 +27,10 @@
                        (stream-cdr stream))))
         (else (stream-filter pred (stream-cdr stream)))))
 
+(define (scale-stream stream factor)
+  (stream-map (lambda (x) (* x factor))
+              stream))
+
 (define (display-n-elements n s)
   (cond ((= n 0) 'done)
         (else
@@ -236,3 +240,51 @@
                  (three-elements square-sum-sorted-pairs)))
 
 (display-n-elements 5 square-sum-in-three-ways)
+
+; ex 3.73
+
+(define (integral integrand initial-value dt)
+  (define int
+    (cons-stream initial-value
+                 (add-streams (scale-stream integrand dt)
+                              int)))
+  int)
+
+(define (RC R C dt)
+  (lambda (current-stream initial-voltage)
+    (cons-stream initial-voltage
+                 (add-streams (scale-stream current-stream R)
+                              (integral (scale-stream current-stream (/ 1 C)) initial-voltage dt)))))
+
+; ex 3.74
+
+(define sense-data integers) ; mock stream
+(define (sign-change-detector current previous)
+  (cond ((and (< current 0) (>= previous 0)) -1)
+        ((and (>= current 0) (< previous 0)) 1)
+        (else 0)))
+
+(define zero-crossings
+  (stream-map sign-change-detector
+              sense-data
+              (cons-stream 0 sense-data)))
+
+; ex 3.75
+
+(define (make-zero-crossings input-stream last-average-value last-input-value)
+  (let ((avpt (/ (+ (stream-car input-stream)
+                    last-input-value) 2)))
+    (cons-stream
+     (sign-change-detector avpt last-average-value) (make-zero-crossings
+                                             (stream-cdr input-stream) avpt (stream-car input-stream)))))
+
+; ex 3.76
+
+(define (smooth input-stream)
+  (scale-stream (add-streams input-stream (stream-cdr input-stream)) 0.5))
+
+(define (make-zero-crossings-modular input-stream)
+  (let ((smoothed-stream (smooth input-stream)))
+    (stream-map sign-change-detector (stream-cdr smoothed-stream) smoothed-stream)))
+
+
