@@ -37,6 +37,12 @@
   (stream-map (lambda (x) (* x factor))
               stream))
 
+(define (display-n-elements n s)
+  (cond ((= n 0) 'done)
+        (else
+         (display-line (stream-car s))     
+         (display-n-elements (- n 1) (stream-cdr s)))))
+
 ; ex 3.77
 
 (define (integral delayed-integrand initial-value dt)
@@ -56,3 +62,31 @@
   (define dy (integral (delay ddy) dy0 dt))
   (define ddy (add-streams (scale-stream dy a) (scale-stream y b)))
   y)
+
+; ex 3.78
+
+(define (generalized-solve-2nd dt y0 dy0 f)
+  (define y (integral (delay dy) y0 dt))
+  (define dy (integral (delay ddy) dy0 dt))
+  (define ddy (f y dy))
+  y)
+
+; ex 3.79
+
+(define (RLC R L C dt)
+  (lambda (initial-capacitor-voltage initial-inductor-current)
+    (define capacitor-voltage (integral
+                               (delay (scale-stream inductor-current (/ -1 C)))
+                               initial-capacitor-voltage dt))
+    (define inductor-current (integral
+                              (delay (add-streams
+                                      (scale-stream inductor-current (/ (* -1 R) L))
+                                      (scale-stream capacitor-voltage (/ 1 L))))
+                              initial-inductor-current dt))
+    (cons capacitor-voltage inductor-current)))
+    
+(define rlc-circuit (RLC 1 1 0.2 0.1))
+(define vi-streams (rlc-circuit 10 0))
+
+(display-n-elements 10 (car vi-streams))
+(display-n-elements 10 (cdr vi-streams))
