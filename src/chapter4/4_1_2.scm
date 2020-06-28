@@ -237,8 +237,13 @@
                 (sequence->exp (cond-actions first))
                 (error "ELSE clause isn't last: COND->IF"
                        clauses))
-            (make-if (cond-predicate first)
-                     (sequence->exp (cond-actions first)) (expand-clauses rest))))))
+            (if (alternative-cond-clause? first) ; ex 4.5
+                (make-if (cond-test first)
+                         (list (cond-recipient first) (cond-test first))
+                         (expand-clauses rest))
+                (make-if (cond-predicate first)
+                         (sequence->exp (cond-actions first))
+                         (expand-clauses rest)))))))
 
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
@@ -252,10 +257,11 @@
         ((begin? exp)
          (eval-sequence (begin-actions exp) env))
         ((cond? exp) (eval (cond->if exp) env))
-        ((application? exp)
-         (apply (eval (operator exp) env) (list-of-values (operands exp) env)))
         ((or? exp) (eval (or->cond exp) env))
         ((and? exp) (eval (and->cond exp) env))
+        ((let? exp) (eval (let->combination exp) env)) 
+        ((application? exp)
+         (apply (eval (operator exp) env) (list-of-values (operands exp) env)))
         (else
          (error "Unknown expression type: EVAL" exp))))
 
@@ -303,3 +309,44 @@
       (list (make-cond-else-clause 'true))
       (cons (make-cond-clause (invert-predicate (first-predicate predicates)) 'false)
             (convert-or-predicates-to-cond-clauses (rest-predicates predicates)))))
+
+; ex 4.5
+
+(define (cond-test clause)
+  (car clause))
+
+(define (cond-recipient clause)
+  (caddr clause))
+
+(define (alternative-cond-clause? clause)
+  (eq? (cadr clause) '=>))
+
+; ex 4.6
+
+(define (let? exp)
+  (tagged-list? exp 'let))
+
+(define (let-bindings exp)
+  (cadr exp))
+
+(define (let-binding-variable binding)
+  (car binding))
+
+(define (let-binding-value binding)
+  (cdr binding))
+
+(define (let-body exp)
+  (caddr exp))
+
+(define (let-binding-variables bindings)
+  (map let-binding-variable bindings))
+
+(define (let-binding-values bindings)
+  (map let-binding-value bindings))
+
+(define (let->combination exp)
+  (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
+        (let-binding-values (let-bindings exp))))
+
+  
+
