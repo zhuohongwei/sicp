@@ -380,7 +380,7 @@
       (let ((first (first-binding bindings))
             (rest (rest-bindings bindings)))
         (make-let (list first)
-                  (expand-bindings rest-bindings body)))))
+                  (expand-bindings rest body)))))
 
 ; ex 4.8
 
