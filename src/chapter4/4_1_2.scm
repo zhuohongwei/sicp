@@ -261,6 +261,7 @@
         ((and? exp) (eval (and->cond exp) env))
         ((let? exp) (eval (let->combination exp) env))
         ((let*? exp) (eval (let*->nested-lets exp) env))
+        ((while? exp) (eval (while->combination exp) env))
         ((application? exp)
          (apply (eval (operator exp) env) (list-of-values (operands exp) env)))
         (else
@@ -408,4 +409,41 @@
         (else
          (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
                (let-binding-values (let-bindings exp))))))
+
+; ex 4.9
+
+;(while predicate actions) 
+
+; becomes
+
+;(let ((f (lambda ()
+ ;        (if predicate
+  ;           (begin actions
+   ;                 (f))
+    ;         'false)))))
+;(f)
+
+(define (while? exp)
+  (tagged-list? exp 'while))
+
+(define (while-predicate exp)
+  (cadr exp))
+
+(define (while-body exp)
+  (caddr exp))
+
+(define (while->combination exp)
+  (make-let (list (make-binding 'fn
+                                (make-lambda '()
+                                             (make-if (while-predicate exp)
+                                                      (make-begin (list (while-body exp) (list 'fn)))
+                                                      'false))))
+            (list 'fn)))
+
+                                               
+
+
+             
+
+
                  
