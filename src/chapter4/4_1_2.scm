@@ -259,7 +259,8 @@
         ((cond? exp) (eval (cond->if exp) env))
         ((or? exp) (eval (or->cond exp) env))
         ((and? exp) (eval (and->cond exp) env))
-        ((let? exp) (eval (let->combination exp) env)) 
+        ((let? exp) (eval (let->combination exp) env))
+        ((let*? exp) (eval (let*->nested-lets exp) env))
         ((application? exp)
          (apply (eval (operator exp) env) (list-of-values (operands exp) env)))
         (else
@@ -344,9 +345,67 @@
 (define (let-binding-values bindings)
   (map let-binding-value bindings))
 
+;(define (let->combination exp)
+ ; (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
+  ;      (let-binding-values (let-bindings exp))))
+
+; ex 4.7
+
+(define (let*? exp)
+  (tagged-list? exp 'let*))
+
+(define (make-let bindings body)
+  (list 'let bindings body))
+
+;(let* ((x 3) (y (+ x 2)) (z (+ x y 5)))
+ ; (* x z))
+
+;(let ((x 3))
+ ; (let ((y (+ x 2)))
+  ;  (let ((z (+ x y 5)))
+   ;   (* x z))))
+
+(define (first-binding bindings)
+  (car bindings))
+
+(define (rest-bindings bindings)
+  (cdr bindings))
+
+(define (let*->nested-lets exp)
+  (expand-bindings (let-bindings exp) (let-body exp)))
+
+(define (expand-bindings bindings body)
+  (if (null? bindings)
+      body
+      (let ((first (first-binding bindings))
+            (rest (rest-bindings bindings)))
+        (make-let (list first)
+                  (expand-bindings rest-bindings body)))))
+
+; ex 4.8
+
+(define (named-let? exp)
+  (symbol? (cadr exp)))
+
+(define (named-let-name exp)
+  (cadr exp))
+
+(define (named-let-bindings exp)
+  (caddr exp))
+
+(define (named-let-body exp)
+  (cadddr exp))
+
+(define (make-binding variable value)
+  (cons variable value))
+
 (define (let->combination exp)
-  (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
-        (let-binding-values (let-bindings exp))))
-
-  
-
+  (cond ((named-let? exp)
+         (make-let (list (make-binding (named-let-name exp)
+                                       (make-lambda (let-binding-variables (named-let-bindings exp))
+                                                    (named-let-body exp))))
+                   (cons (named-let-name exp) (let-binding-values (named-let-bindings exp)))))
+        (else
+         (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
+               (let-binding-values (let-bindings exp))))))
+                 
