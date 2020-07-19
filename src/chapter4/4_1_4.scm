@@ -71,6 +71,17 @@
   (list (list 'car car)
         (list 'cdr cdr)
         (list 'cons cons)
+        (list '> >)
+        (list '< <)
+        (list '= =)
+        (list '<= <=)
+        (list '>= >=)
+        (list '+ +)
+        (list '* *)
+        (list '- -)
+        (list '/ /)
+        (list '% remainder)
+        (list 'print display)
         (list 'null? null?)))
 
 (define (primitive-procedure-names)
@@ -103,12 +114,12 @@
   (cadddr procedure))
 
 (define (true? boolean-value)
-  (eq? boolean-value 'true))
+  (eq? boolean-value true))
 
 (define (make-procedure parameters body environment)
   (list 'compound parameters body environment))
 
-;;; setup run-loop
+;;; setup global environment
 (define (setup-environment)
   (let ((initial-env
          (extend-environment (primitive-procedure-names)
@@ -147,6 +158,18 @@
   (if (pair? exp)
       (eq? (car exp) tag)
       false))
+
+(define (spy fn)
+  (lambda (first-arg . rest-args)
+    (let ((all-args (cons first-arg rest-args)))
+      (let ((result (apply-in-underlying-scheme fn all-args)))
+        (newline)
+        (display "ARGS: ")
+        (display all-args)
+        (newline)
+        (display "RESULT: ")
+        (display result)
+        result))))
 
 ;;; self-evaluating?
 (define (self-evaluating? exp)
@@ -309,7 +332,7 @@
   (make-cond-clause 'else actions))
 
 (define (make-cond clauses)
-  (list 'cond clauses))
+  (cons 'cond clauses))
 
 ;;; `cond =>` support
 (define (cond-test clause)
@@ -338,7 +361,7 @@
   (cdr predicates))
   
 (define (or->cond exp)
-  (make-cond (convert-or-predicates-to-cond-clauses (or-predicates exp))))
+  (make-cond (convert-or-predicates-to-cond-clauses (or-predicates exp))))  
 
 (define (convert-or-predicates-to-cond-clauses predicates)
   (if (no-predicates? predicates)
@@ -369,6 +392,16 @@
 (define (let? exp)
   (tagged-list? exp 'let))
 
+(define (let->combination exp)
+  (cond ((named-let? exp)
+         (make-let (list (make-binding (named-let-name exp)
+                                       (make-lambda (let-binding-variables (named-let-bindings exp))
+                                                    (named-let-body exp))))
+                   (cons (named-let-name exp) (let-binding-values (named-let-bindings exp)))))
+        (else
+         (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
+               (let-binding-values (let-bindings exp))))))
+
 (define (let-bindings exp)
   (cadr exp))
 
@@ -376,10 +409,10 @@
   (car binding))
 
 (define (let-binding-value binding)
-  (cdr binding))
+  (cadr binding))
 
 (define (let-body exp)
-  (caddr exp))
+  (cddr exp))
 
 (define (let-binding-variables bindings)
   (map let-binding-variable bindings))
@@ -387,12 +420,12 @@
 (define (let-binding-values bindings)
   (map let-binding-value bindings))
 
+(define (make-let bindings body)
+  (list 'let bindings body))
+
 ;;; `let*` support
 (define (let*? exp)
   (tagged-list? exp 'let*))
-
-(define (make-let bindings body)
-  (list 'let bindings body))
 
 (define (first-binding bindings)
   (car bindings))
@@ -425,18 +458,7 @@
   (cadddr exp))
 
 (define (make-binding variable value)
-  (cons variable value))
-
-(define (let->combination exp)
-  (cond ((named-let? exp)
-         (make-let (list (make-binding (named-let-name exp)
-                                       (make-lambda (let-binding-variables (named-let-bindings exp))
-                                                    (named-let-body exp))))
-                   (cons (named-let-name exp) (let-binding-values (named-let-bindings exp)))))
-        (else
-         (cons (make-lambda (let-binding-variables (let-bindings exp)) (let-body exp))
-               (let-binding-values (let-bindings exp))))))
-
+  (list variable value))
 
 ;;; `while` support
 (define (while? exp)
@@ -449,12 +471,10 @@
   (caddr exp))
 
 (define (while->combination exp)
-  (make-let (list (make-binding 'fn
-                                (make-lambda '()
-                                             (make-if (while-predicate exp)
-                                                      (make-begin (list (while-body exp) (list 'fn)))
-                                                      'false))))
-            (list 'fn)))
+  (make-begin (list (list 'define (list 'fn) (make-if (while-predicate exp)
+                                                     (make-begin (list (while-body exp) (list 'fn)))
+                                                     'false))
+                    (list 'fn))))
 
 ;;; `apply` support
 (define (application? exp)
@@ -469,7 +489,7 @@
                                       (procedure-parameters procedure) arguments
                                       (procedure-environment procedure))))
         (else (error
-               "Unknown procedure type: APPLY" procedure))))
+               "Unknown procedure type: APPLY" procedure arguments))))
 
 (define (operator exp)
   (car exp))
