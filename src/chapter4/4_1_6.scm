@@ -94,12 +94,9 @@
 ;        ((compound-procedure? procedure)
 ;         (eval-sequence
 ;          (definitions->assignments (procedure-body procedure))
-;          (extend-environment (definition-variables procedure-body)
-;                              (definition-values procedure-body) 
-;                              (extend-environment
-;                               (procedure-parameters procedure)
-;                               arguments
-;                               (procedure-environment procedure)))))
+;          (extend-environment (append (procedure-parameters procedure) (definition-variables procedure-body))
+;                              (append arguments (definition-values procedure-body)) 
+;                               (procedure-environment procedure))))
 ;        (else (error
 ;               "Unknown procedure type: APPLY" procedure arguments))))
 
