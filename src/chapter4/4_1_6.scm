@@ -69,11 +69,9 @@
   (define (definition->let-binding exp) (make-binding (definition-variable exp) '*unassigned*))
   (define (definition->assignment exp) (make-assignment (definition-variable exp) (definition-value exp)))
   (make-let (map definition->let-binding (filter definition? procedure-body))
-            (map (lambda (exp)
-                   (if (definition? exp)
-                       (definition->assignment exp)
-                       exp))
-                 procedure-body)))
+            (append 
+             (map (definition->assignment exp) (filter definition? procedure-body))
+             (filter (lambda (exp) (if (not (definition? exp)) true false)) procedure-body))))
 
 (define (set-variable-value! var val env)
   (define (env-loop env)
