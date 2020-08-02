@@ -64,14 +64,44 @@
   (cond ((null? items) '())
         ((predicate? (car items) (cons (car items) (filter predicate? (cdr items)))))
         (else (filter predicate? (cdr items)))))
-       
+
+(define (definition->unassigned-binding exp) (make-binding (definition-variable exp) '*unassigned*))
+
+(define (definition->assignment exp) (make-assignment (definition-variable exp) (definition-value exp)))
+
 (define (scan-out-defines procedure-body)
-  (define (definition->let-binding exp) (make-binding (definition-variable exp) '*unassigned*))
-  (define (definition->assignment exp) (make-assignment (definition-variable exp) (definition-value exp)))
-  (make-let (map definition->let-binding (filter definition? procedure-body))
+  (make-let (map definition->unassigned-binding (filter definition? procedure-body))
             (append 
              (map (definition->assignment exp) (filter definition? procedure-body))
              (filter (lambda (exp) (if (not (definition? exp)) true false)) procedure-body))))
+
+;;; ex 4.17
+;;; another way to simulate simultaneous scope is to reuse the procedure's current environment instead of a `let`
+(define (definition-variables procedure-body)
+  (map definition-variable (filter definition? procedure-body)))
+
+(define (definition-values procedure-body)
+  (map definition-values (filter definition? procedure-body)))
+
+(define (definitions->assignments procedure-body)
+  (append 
+   (map (definition->assignment exp) (filter definition? procedure-body))
+   (filter (lambda (exp) (if (not (definition? exp)) true false)) procedure-body)))
+
+;(define (apply-procedure procedure arguments)
+;  (cond ((primitive-procedure? procedure)
+;         (apply-primitive-procedure procedure arguments))
+;        ((compound-procedure? procedure)
+;         (eval-sequence
+;          (definitions->assignments (procedure-body procedure))
+;          (extend-environment (definition-variables procedure-body)
+;                              (definition-values procedure-body) 
+;                              (extend-environment
+;                               (procedure-parameters procedure)
+;                               arguments
+;                               (procedure-environment procedure)))))
+;        (else (error
+;               "Unknown procedure type: APPLY" procedure arguments))))
 
 (define (set-variable-value! var val env)
   (define (env-loop env)
