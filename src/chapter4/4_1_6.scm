@@ -81,7 +81,7 @@
   (map definition-variable (filter definition? procedure-body)))
 
 (define (definition-values procedure-body)
-  (map definition-values (filter definition? procedure-body)))
+  (map (lambda (definition) '*unassigned*) (filter definition? procedure-body)))
 
 (define (definitions->assignments procedure-body)
   (append 
