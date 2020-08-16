@@ -72,7 +72,7 @@
 (define (scan-out-defines procedure-body)
   (make-let (map definition->unassigned-binding (filter definition? procedure-body))
             (append 
-             (map (definition->assignment exp) (filter definition? procedure-body))
+             (map definition->assignment (filter definition? procedure-body))
              (filter (lambda (exp) (if (not (definition? exp)) true false)) procedure-body))))
 
 ;;; ex 4.17
@@ -85,7 +85,7 @@
 
 (define (definitions->assignments procedure-body)
   (append 
-   (map (definition->assignment exp) (filter definition? procedure-body))
+   (map definition->assignment (filter definition? procedure-body))
    (filter (lambda (exp) (if (not (definition? exp)) true false)) procedure-body)))
 
 ;(define (apply-procedure procedure arguments)
@@ -210,6 +210,7 @@
         ((and? exp) (eval (and->cond exp) env))
         ((let? exp) (eval (let->combination exp) env))
         ((let*? exp) (eval (let*->nested-lets exp) env))
+        ((letrec? exp) (eval (letrec->combination exp) env))
         ((while? exp) (eval (while->combination exp) env))
         ((application? exp)
          (apply-procedure (eval (operator exp) env) (list-of-values (operands exp) env)))
@@ -524,6 +525,36 @@
 
 (define (make-binding variable value)
   (list variable value))
+
+;;; ex 4.20
+;;; `letrec` support
+
+(define (letrec? exp)
+  (tagged-list? exp 'letrec))
+
+(define (letrec-bindings exp)
+  (cadr exp))
+
+(define (letrec-body exp)
+  (cddr exp))
+
+(define (letrec-binding-variable binding)
+  (car binding))
+
+(define (letrec-binding-value binding)
+  (cadr binding))
+
+(define (letrec-binding->unassigned-binding binding)
+  (make-binding (letrec-binding-variable binding) '*unassigned*))
+
+(define (letrec-binding->assignment binding)
+  (make-assignment (letrec-binding-variable binding) (letrec-binding-value binding)))
+
+(define (letrec->combination exp)
+  (make-let (map letrec-binding->unassigned-binding (letrec-bindings exp))
+            (append 
+             (map letrec-binding->assignment (letrec-bindings exp))
+             (letrec-body exp))))
 
 ;;; `while` support
 (define (while? exp)
